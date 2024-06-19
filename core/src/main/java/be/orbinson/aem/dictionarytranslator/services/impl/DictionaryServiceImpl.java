@@ -2,10 +2,17 @@ package be.orbinson.aem.dictionarytranslator.services.impl;
 
 import be.orbinson.aem.dictionarytranslator.services.DictionaryService;
 import com.adobe.granite.translation.api.TranslationConfig;
+import com.adobe.granite.translation.api.TranslationException;
 import com.day.cq.commons.jcr.JcrConstants;
 import com.day.cq.commons.jcr.JcrUtil;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.sling.api.resource.*;
+import org.apache.sling.api.resource.LoginException;
+import org.apache.sling.api.resource.PersistenceException;
+import org.apache.sling.api.resource.Resource;
+import org.apache.sling.api.resource.ResourceResolver;
+import org.apache.sling.api.resource.ResourceResolverFactory;
+import org.apache.sling.api.resource.ResourceUtil;
+import org.apache.sling.api.resource.ValueMap;
 import org.apache.sling.jcr.resource.api.JcrResourceConstants;
 import org.jetbrains.annotations.NotNull;
 import org.osgi.service.component.annotations.Component;
@@ -13,7 +20,11 @@ import org.osgi.service.component.annotations.Reference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.jackrabbit.JcrConstants.JCR_LANGUAGE;
@@ -58,8 +69,8 @@ public class DictionaryServiceImpl implements DictionaryService {
         Resource resource = resourceResolver.getResource(path);
 
         if (resource != null && translationConfig != null) {
-            try (ResourceResolver serviceResourceResolver = getServiceResourceResolver()) {
-                Map<String, String> languages = translationConfig.getLanguages(serviceResourceResolver);
+            try {
+                Map<String, String> languages = translationConfig.getLanguages();
 
                 resource.getChildren().forEach(child -> {
                     if (child.getValueMap().containsKey(JcrConstants.JCR_LANGUAGE)) {
@@ -71,8 +82,8 @@ public class DictionaryServiceImpl implements DictionaryService {
                         }
                     }
                 });
-            } catch (LoginException e) {
-                LOG.error("Unable to get service resource resolver to get languages", e);
+            } catch (TranslationException e) {
+                LOG.error("Unable to get languages", e);
             }
         }
 

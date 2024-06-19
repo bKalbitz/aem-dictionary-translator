@@ -1,6 +1,7 @@
 package be.orbinson.aem.dictionarytranslator.servlets.datasource;
 
 import com.adobe.granite.translation.api.TranslationConfig;
+import com.adobe.granite.translation.api.TranslationException;
 import com.adobe.granite.ui.components.ds.DataSource;
 import com.adobe.granite.ui.components.ds.SimpleDataSource;
 import com.adobe.granite.ui.components.ds.ValueMapResource;
@@ -19,7 +20,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.Servlet;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
 @Component(service = Servlet.class)
 @SlingServletResourceTypes(
@@ -62,21 +68,27 @@ public class AvailableLanguageDatasource extends SlingSafeMethodsServlet {
         ResourceResolver resourceResolver = request.getResourceResolver();
         String languageParameter = request.getRequestPathInfo().getSuffix();
 
-        Map<String, String> languageMap = new HashMap<>(translationConfig.getLanguages(resourceResolver));
-        filterExistingLanguages(languageMap, resourceResolver, languageParameter);
-        Map<String, String> sortedLanguageMap = sortByValue(languageMap);
+        Map<String, String> languageMap = null;
+        try {
+            languageMap = new HashMap<>(translationConfig.getLanguages());
 
-        List<Resource> resourceList = new ArrayList<>();
-        sortedLanguageMap.forEach((key, value) -> {
-            String text = String.format("%s (%s)", value, key);
-            ValueMap valueMap = new ValueMapDecorator(Map.of("value", key, "text", text));
+            filterExistingLanguages(languageMap, resourceResolver, languageParameter);
+            Map<String, String> sortedLanguageMap = sortByValue(languageMap);
 
-            LOG.debug("Add language '{}' to datasource with key '{}'", text, key);
-            resourceList.add(new ValueMapResource(resourceResolver, "", "", valueMap));
-        });
+            List<Resource> resourceList = new ArrayList<>();
+            sortedLanguageMap.forEach((key, value) -> {
+                String text = String.format("%s (%s)", value, key);
+                ValueMap valueMap = new ValueMapDecorator(Map.of("value", key, "text", text));
 
-        DataSource dataSource = new SimpleDataSource(resourceList.iterator());
-        request.setAttribute(DataSource.class.getName(), dataSource);
+                LOG.debug("Add language '{}' to datasource with key '{}'", text, key);
+                resourceList.add(new ValueMapResource(resourceResolver, "", "", valueMap));
+            });
+
+            DataSource dataSource = new SimpleDataSource(resourceList.iterator());
+            request.setAttribute(DataSource.class.getName(), dataSource);
+        } catch (TranslationException e) {
+            LOG.error("Unable to get languages", e);
+        }
     }
 
 }
